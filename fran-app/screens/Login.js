@@ -8,7 +8,7 @@ const Login = ({ navigation }) => {
 
 const handleLogin = async () => {
   try {
-    const response = await fetch('http://192.168.1.34/fran/api/login.php', {
+    const response = await fetch('http://192.168.1.7/fran/api/login.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

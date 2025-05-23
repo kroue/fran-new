@@ -15,12 +15,13 @@ const OrderManagement = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://localhost/online-ordering-system/api/orders.php');
+      const response = await fetch('http://localhost/fran/api/orders.php');
       if (response.ok) {
         const data = await response.json();
-        setOrders(data);
+        console.log('Fetched orders:', data); // Log the fetched data
+        setOrders(data); // Update the state
       } else {
-        console.error('Failed to fetch orders');
+        console.error('Failed to fetch orders:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -28,12 +29,11 @@ const OrderManagement = () => {
   };
 
   const toggleOrderStatus = async (orderId, currentStatus) => {
-    const newStatus = currentStatus === 'Ready' ? 'Preparing' : 'Ready';
-
-    console.log('Updating order:', { id: orderId, status: newStatus }); // Debugging: Log the request payload
+    const newStatus = currentStatus === 'Finished' ? 'Preparing' : 'Finished';
+    console.log(`Updating order ${orderId} to status: ${newStatus}`);
 
     try {
-      const response = await fetch('http://localhost/online-ordering-system/api/orders.php', {
+      const response = await fetch('http://localhost/fran/api/orders.php', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -42,48 +42,52 @@ const OrderManagement = () => {
       });
 
       if (response.ok) {
-        console.log('Order status updated successfully'); // Debugging: Log success
-        fetchOrders(); // Refresh the orders list
+        const result = await response.json();
+        console.log(result.message);
+
+        if (newStatus === 'Finished') {
+          // Remove the order from the state
+          setOrders((prevOrders) => prevOrders.filter((order) => order.id !== orderId));
+        } else {
+          fetchOrders(); // Refresh the orders list
+        }
       } else {
         const errorData = await response.json();
-        console.error('Failed to update order status:', errorData); // Debugging: Log error response
+        console.error('Failed to update order status:', errorData);
       }
     } catch (error) {
-      console.error('Error updating order status:', error); // Debugging: Log network errors
+      console.error('Error updating order status:', error);
     }
   };
 
   return (
-  <div style={styles.container}>
-    <h1 style={styles.title}>Order Management</h1>
-    <ul style={styles.list}>
-      {orders.map((order) => (
-        <li key={order.id} style={styles.listItem}>
-          <div>
-            <p><strong>User Email:</strong> {order.user_email}</p>
-            <p><strong>Pizza Name:</strong> {order.pizza_name}</p>
-            <p><strong>Size:</strong> {order.size}</p>
-            <p><strong>Crust:</strong> {order.crust}</p> {/* Display crust type */}
-            <p><strong>Toppings:</strong> {order.toppings}</p>
-            <p><strong>Price:</strong> {order.price} PHP</p>
-            <p>
-              <strong>Status:</strong>{' '}
-              <span style={order.status === 'Ready' ? styles.ready : styles.preparing}>
-                {order.status}
-              </span>
-            </p>
-          </div>
-          <button
-            onClick={() => toggleOrderStatus(order.id, order.status)}
-            style={styles.button}
-          >
-            {order.status === 'Ready' ? 'Mark as Preparing' : 'Mark as Ready'}
-          </button>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
+    <div style={styles.container}>
+      <h1 style={styles.title}>Order Management</h1>
+      {orders.length === 0 ? (
+        <p>No orders available.</p>
+      ) : (
+        <ul style={styles.list}>
+          {orders.map((order) => (
+            <li key={order.id} style={styles.listItem}>
+              <div>
+                <p><strong>Product Name:</strong> {order.product_name}</p>
+                <p><strong>Quantity:</strong> {order.quantity}</p>
+                <p><strong>Total Price:</strong> {order.total_price} PHP</p>
+                <p><strong>Status:</strong> {order.status}</p>
+                <p><strong>Address:</strong> {order.address}</p>
+              </div>
+              <button
+                onClick={() => toggleOrderStatus(order.id, order.status)}
+                style={styles.button}
+              >
+                {order.status === 'Finished' ? 'Mark as Preparing' : 'Mark as Finished'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 };
 
 const styles = {
@@ -93,13 +97,13 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '20px',
-    backgroundColor: '#ffffff', // White
+    backgroundColor: '#ffffff',
     minHeight: '100vh',
   },
   title: {
     fontSize: '28px',
     fontWeight: 'bold',
-    color: '#000000', // Black
+    color: '#000000',
     marginBottom: '20px',
   },
   list: {
@@ -114,25 +118,17 @@ const styles = {
     alignItems: 'flex-start',
     padding: '15px',
     marginBottom: '10px',
-    backgroundColor: '#ffffff', // White
+    backgroundColor: '#ffffff',
     borderRadius: '10px',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   button: {
-    backgroundColor: '#000000', // Black
-    color: '#ffffff', // White
+    backgroundColor: '#000000',
+    color: '#ffffff',
     border: 'none',
     borderRadius: '5px',
     padding: '5px 10px',
     cursor: 'pointer',
-  },
-  ready: {
-    color: 'green',
-    fontWeight: 'bold',
-  },
-  preparing: {
-    color: 'orange',
-    fontWeight: 'bold',
   },
 };
 

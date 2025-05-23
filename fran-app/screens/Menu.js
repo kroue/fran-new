@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal, TextInput, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons'; // For cart icon (install expo/vector-icons if not already installed)
 
 const Menu = ({ navigation }) => {
   const [menuItems, setMenuItems] = useState([]);
+  const [filteredMenuItems, setFilteredMenuItems] = useState([]); // For filtered products
+  const [cart, setCart] = useState([]);
+  const [isCartModalVisible, setIsCartModalVisible] = useState(false); // For cart modal
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [quantity, setQuantity] = useState(1); // For quantity selection
+  const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false); // For quantity modal
   const [sizes, setSizes] = useState([]);
   const [toppingsOptions, setToppingsOptions] = useState([]);
   const [crustTypes, setCrustTypes] = useState([]); // State for crust types
-  const [cart, setCart] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null);
   const [customization, setCustomization] = useState({
     size: '',
     crust: 'Normal crust',
@@ -22,27 +27,37 @@ const Menu = ({ navigation }) => {
     expiryDate: '',
     cvv: '',
   });
+  const [searchQuery, setSearchQuery] = useState(''); // For the search bar
 
-  // Fetch pizzas, sizes, and toppings from backend
+  // Calculate total price of all items in the cart
+  const totalCartPrice = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+
+  // Fetch products from the backend
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('http://192.168.1.7/fran/api/products.php'); // Replace with your backend API endpoint
+      if (response.ok) {
+        const data = await response.json();
+        const availableProducts = data.filter((item) => item.stock > 0); // Filter out products with stock 0
+        setMenuItems(availableProducts);
+        setFilteredMenuItems(availableProducts); // Update filtered products
+      } else {
+        console.error('Failed to fetch products:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      Alert.alert('Error', 'Failed to fetch products');
+    }
+  };
+
   useEffect(() => {
-    fetch('http://192.168.1.160/online-ordering-system/api/pizzas.php')
-      .then(res => res.json())
-      .then(data => setMenuItems(data))
-      .catch(() => Alert.alert('Error', 'Failed to fetch pizzas'));
+    fetchProducts(); // Initial fetch
 
-    fetch('http://192.168.1.160/online-ordering-system/api/sizes.php')
-      .then(res => res.json())
-      .then(data => setSizes(data.map(s => s.size_type)))
-      .catch(() => Alert.alert('Error', 'Failed to fetch sizes'));
+    // Set up polling to fetch products every 5 seconds
+    const interval = setInterval(fetchProducts, 5000);
 
-    fetch('http://192.168.1.160/online-ordering-system/api/toppings.php')
-      .then(res => res.json())
-      .then(data => setToppingsOptions(data.map(t => t.name)))
-      .catch(() => Alert.alert('Error', 'Failed to fetch toppings'));
-    fetch('http://192.168.1.160/online-ordering-system/api/crusts.php')
-    .then((res) => res.json())
-    .then((data) => setCrustTypes(data.map((c) => c.type))) // Map to extract crust type
-    .catch(() => Alert.alert('Error', 'Failed to fetch crust types'));
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -57,12 +72,27 @@ const Menu = ({ navigation }) => {
 
 const addToCart = (item) => {
   setSelectedItem(item);
-  setCustomization({
-    size: sizes[0] || '', // Default to the first size
-    crust: crustTypes[0] || '', // Default to the first crust type
-    toppings: [], // Start with no toppings selected
+  setQuantity(1); // Reset quantity to 1
+  setIsQuantityModalVisible(true); // Show quantity modal
+};
+
+const handleAddToCart = () => {
+  setCart((prevCart) => {
+    const existingItem = prevCart.find((cartItem) => cartItem.id === selectedItem.id);
+    if (existingItem) {
+      // Update quantity and total price if the item already exists in the cart
+      return prevCart.map((cartItem) =>
+        cartItem.id === selectedItem.id
+          ? { ...cartItem, quantity: cartItem.quantity + quantity, totalPrice: cartItem.totalPrice + selectedItem.price * quantity }
+          : cartItem
+      );
+    } else {
+      // Add new item to the cart
+      return [...prevCart, { ...selectedItem, quantity, totalPrice: selectedItem.price * quantity }];
+    }
   });
-  setIsModalVisible(true);
+  setIsQuantityModalVisible(false); // Close the quantity modal
+  Alert.alert('Added to Cart', `${selectedItem.name} has been added to your cart.`);
 };
 
   const handleAddCustomizedItem = () => {
@@ -78,10 +108,10 @@ const addToCart = (item) => {
 
   const handleProceedToPayment = () => {
     if (cart.length === 0) {
-      alert('Please add at least one item to your cart.');
+      Alert.alert('Error', 'Your cart is empty.');
       return;
     }
-    setIsPaymentModalVisible(true); // Show the payment popup
+    navigation.navigate('Order', { orders: cart, totalPrice: totalCartPrice }); // Pass cart data and total price to Order.js
   };
 
 const handlePayment = async () => {
@@ -98,7 +128,7 @@ const handlePayment = async () => {
   }
 
   try {
-    const response = await fetch('http://192.168.1.160/online-ordering-system/api/orders.php', {
+    const response = await fetch('http://192.168.1.7/fran/api/orders.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -142,6 +172,19 @@ const handlePayment = async () => {
     navigation.navigate('Login');
   };
 
+  // Handle search query changes
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setFilteredMenuItems(menuItems); // Reset to all products if search query is empty
+    } else {
+      const filtered = menuItems.filter((item) =>
+        item.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredMenuItems(filtered);
+    }
+  };
+
   const renderMenuItem = ({ item }) => (
     <View style={styles.card}>
       {item.image_url ? (
@@ -153,111 +196,149 @@ const handlePayment = async () => {
       )}
       <View style={styles.cardContent}>
         <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemDescription}>{item.description}</Text>
+        <Text style={styles.itemDescription}>{item.category}</Text>
         <Text style={styles.itemPrice}>{item.price} PHP</Text>
       </View>
-      <TouchableOpacity onPress={() => addToCart(item)} style={styles.addButton}>
+      <TouchableOpacity style={styles.addButton} onPress={() => addToCart(item)}>
         <Text style={styles.addButtonText}>Add</Text>
       </TouchableOpacity>
     </View>
   );
 
+const renderCartItem = ({ item }) => (
+  <View style={styles.cartItem}>
+    <Text style={styles.cartItemName}>{item.name}</Text>
+    <View style={styles.quantityContainer}>
+      <TouchableOpacity
+        style={styles.quantityButton}
+        onPress={() => updateCartItemQuantity(item.id, item.quantity - 1)} // Decrease quantity
+      >
+        <Text style={styles.quantityButtonText}>-</Text>
+      </TouchableOpacity>
+      <Text style={styles.quantityText}>{item.quantity}</Text>
+      <TouchableOpacity
+        style={styles.quantityButton}
+        onPress={() => updateCartItemQuantity(item.id, item.quantity + 1)} // Increase quantity
+      >
+        <Text style={styles.quantityButtonText}>+</Text>
+      </TouchableOpacity>
+    </View>
+    <Text style={styles.cartItemPrice}>Total: {item.totalPrice} PHP</Text>
+  </View>
+);
+
+const updateCartItemQuantity = (itemId, newQuantity) => {
+  if (newQuantity <= 0) {
+    // Remove the item from the cart if the quantity is 0 or less
+    setCart((prevCart) => prevCart.filter((item) => item.id !== itemId));
+  } else {
+    // Update the quantity and total price of the item
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.id === itemId
+          ? { ...item, quantity: newQuantity, totalPrice: item.price * newQuantity }
+          : item
+      )
+    );
+  }
+};
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Find Your Favorite Food</Text>
+      <Text style={styles.title}>FRAN</Text>
+      <Text style={styles.title}>Shop Now</Text>
+
+      {/* Search Bar */}
+      <TextInput
+        style={styles.searchBar}
+        placeholder="Search for products..."
+        value={searchQuery}
+        onChangeText={handleSearch}
+      />
+
       <FlatList
-        data={menuItems}
+        data={filteredMenuItems}
         renderItem={renderMenuItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.menuList}
       />
+
+      {/* Cart Icon */}
+      <TouchableOpacity
+        style={styles.cartIconContainer}
+        onPress={() => setIsCartModalVisible(true)}
+      >
+        <Ionicons name="cart" size={30} color="#000" />
+        {cart.length > 0 && (
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{cart.length}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Proceed to Payment Button */}
       <TouchableOpacity style={styles.button} onPress={handleProceedToPayment}>
         <Text style={styles.buttonText}>Proceed to Payment</Text>
       </TouchableOpacity>
 
-{/* Payment Modal */}
-<Modal visible={isPaymentModalVisible} animationType="slide" transparent>
+      {/* Cart Modal */}
+      <Modal visible={isCartModalVisible} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Your Cart</Text>
+            {cart.length === 0 ? (
+              <Text style={styles.emptyCartText}>Your cart is empty.</Text>
+            ) : (
+              <>
+                <FlatList
+                  data={cart}
+                  renderItem={renderCartItem}
+                  keyExtractor={(item, index) => index.toString()}
+                />
+                <Text style={styles.totalPrice}>Total: {totalCartPrice.toFixed(2)} PHP</Text>
+              </>
+            )}
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setIsCartModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Quantity Modal */}
+      <Modal visible={isQuantityModalVisible} animationType="slide" transparent>
   <View style={styles.modalContainer}>
     <View style={styles.modalContent}>
-      <Text style={styles.modalTitle}>Payment</Text>
-
-      {/* Payment Method Switch */}
-      <View style={styles.toggleContainer}>
+      <Text style={styles.modalTitle}>Select Quantity</Text>
+      <Text style={styles.itemName}>{selectedItem?.name}</Text>
+      <Text style={styles.modalDescription}>
+        Use the buttons below to adjust the quantity.
+      </Text>
+      <View style={styles.quantityContainer}>
         <TouchableOpacity
-          style={[
-            styles.toggleButton,
-            paymentMethod === 'Card' && styles.selectedToggle,
-          ]}
-          onPress={() => setPaymentMethod('Card')}
+          style={styles.quantityButton}
+          onPress={() => setQuantity((prev) => (prev > 1 ? prev - 1 : 1))} // Decrease quantity, minimum is 1
         >
-          <Text style={styles.toggleText}>Card</Text>
+          <Text style={styles.quantityButtonText}>-</Text>
         </TouchableOpacity>
+        <Text style={styles.quantityText}>{quantity}</Text>
         <TouchableOpacity
-          style={[
-            styles.toggleButton,
-            paymentMethod === 'COD' && styles.selectedToggle,
-          ]}
-          onPress={() => setPaymentMethod('COD')}
+          style={styles.quantityButton}
+          onPress={() => setQuantity((prev) => prev + 1)} // Increase quantity
         >
-          <Text style={styles.toggleText}>Cash on Delivery</Text>
+          <Text style={styles.quantityButtonText}>+</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Card Payment Fields */}
-      {paymentMethod === 'Card' && (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Card Number"
-            keyboardType="numeric"
-            value={paymentDetails.cardNumber}
-            onChangeText={(text) =>
-              setPaymentDetails((prev) => ({ ...prev, cardNumber: text }))
-            }
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Expiry Date (MM/YY)"
-            value={paymentDetails.expiryDate}
-            onChangeText={(text) =>
-              setPaymentDetails((prev) => ({ ...prev, expiryDate: text }))
-            }
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="CVV"
-            keyboardType="numeric"
-            secureTextEntry
-            value={paymentDetails.cvv}
-            onChangeText={(text) =>
-              setPaymentDetails((prev) => ({ ...prev, cvv: text }))
-            }
-          />
-        </>
-      )}
-
-      {/* COD Address Field */}
-      {paymentMethod === 'COD' && (
-        <TextInput
-          style={styles.input}
-          placeholder="Delivery Address"
-          value={paymentDetails.address}
-          onChangeText={(text) =>
-            setPaymentDetails((prev) => ({ ...prev, address: text }))
-          }
-        />
-      )}
-
       <View style={styles.modalButtons}>
-        <TouchableOpacity
-  style={styles.modalButton}
-  onPress={handlePayment} // Associate the button with the handlePayment function
->
-  <Text style={styles.modalButtonText}>Confirm</Text>
-</TouchableOpacity>
+        <TouchableOpacity style={styles.modalButton} onPress={handleAddToCart}>
+          <Text style={styles.modalButtonText}>Add to Cart</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modalButton, styles.cancelButton]}
-          onPress={() => setIsPaymentModalVisible(false)}
+          onPress={() => setIsQuantityModalVisible(false)}
         >
           <Text style={styles.modalButtonText}>Cancel</Text>
         </TouchableOpacity>
@@ -265,88 +346,6 @@ const handlePayment = async () => {
     </View>
   </View>
 </Modal>
-
-      {/* Customization Modal */}
-      <Modal visible={isModalVisible} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Customize {selectedItem?.name}</Text>
-            {/* Size Selection */}
-            <Text style={styles.label}>Size</Text>
-            <View style={styles.options}>
-              {sizes.map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  style={[
-                    styles.optionButton,
-                    customization.size === size && styles.selectedOption,
-                  ]}
-                  onPress={() => setCustomization((prev) => ({ ...prev, size }))}
-                >
-                  <Text style={styles.optionText}>{size}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {/* Toppings Selection */}
-            <Text style={styles.label}>Toppings</Text>
-            <View style={styles.options}>
-              {toppingsOptions.map((topping) => (
-                <TouchableOpacity
-                  key={topping}
-                  style={[
-                    styles.optionButton,
-                    customization.toppings.includes(topping) && styles.selectedOption,
-                  ]}
-                  onPress={() =>
-                    setCustomization((prev) => ({
-                      ...prev,
-                      toppings: prev.toppings.includes(topping)
-                        ? prev.toppings.filter((t) => t !== topping)
-                        : [...prev.toppings, topping],
-                    }))
-                  }
-                >
-                  <Text style={styles.optionText}>{topping}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-{/* Crust Type Selection */}
-<Text style={styles.label}>Crust Type</Text>
-<View style={styles.options}>
-  {crustTypes.map((crust) => (
-    <TouchableOpacity
-      key={crust}
-      style={[
-        styles.optionButton,
-        customization.crust === crust && styles.selectedOption,
-      ]}
-      onPress={() => setCustomization((prev) => ({ ...prev, crust }))}
-    >
-      <Text style={styles.optionText}>{crust}</Text>
-    </TouchableOpacity>
-  ))}
-</View>
-            {/* Modal Buttons */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={handleAddCustomizedItem}
-              >
-                <Text style={styles.modalButtonText}>Add to Cart</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setIsModalVisible(false);
-                  setCustomization({ size: sizes[0] || '', toppings: [] });
-                }}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -363,6 +362,14 @@ const styles = StyleSheet.create({
     color: '#000000', // Black text
     marginBottom: 20,
     textAlign: 'center',
+  },
+  searchBar: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   menuList: {
     paddingBottom: 20,
@@ -414,7 +421,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   button: {
-    backgroundColor: '#ff69b4', // Hot pink
+    backgroundColor: '#000000', // Hot pink
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
@@ -429,7 +436,7 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   logoutText: {
-    color: '#ff69b4', // Hot pink
+    color: '#000000', // Hot pink
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -449,7 +456,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ff69b4', // Hot pink
+    color: '#000000', // Hot pink
     marginBottom: 20,
   },
   label: {
@@ -484,17 +491,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
+    marginTop: 20,
   },
   modalButton: {
     flex: 1,
-    backgroundColor: '#ff69b4', // Hot pink
+    backgroundColor: '#000000', // Black button background
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     marginHorizontal: 5,
   },
   cancelButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#ccc', // Gray cancel button
+  },
+  proceedButton: {
+    backgroundColor: '#ccc', // Green proceed button
   },
   modalButtonText: {
     color: '#fff',
@@ -521,6 +532,100 @@ selectedToggle: {
 toggleText: {
   color: '#fff',
   fontWeight: 'bold',
+},
+cartIconContainer: {
+  position: 'absolute',
+  bottom: 80, // Adjusted to ensure it's above the "Proceed to Payment" button
+  right: 20,
+  backgroundColor: '#ffffff', // White background
+  borderRadius: 30,
+  padding: 10,
+  shadowColor: '#000000', // Black shadow
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 5,
+  elevation: 3,
+  zIndex: 10, // Ensure it appears above other elements
+},
+cartBadge: {
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  backgroundColor: '#ff0000', // Red badge
+  borderRadius: 10,
+  width: 20,
+  height: 20,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+cartBadgeText: {
+  color: '#ffffff', // White text
+  fontSize: 12,
+  fontWeight: 'bold',
+},
+cartItem: {
+  backgroundColor: '#ffffff',
+  borderRadius: 10,
+  padding: 15,
+  marginBottom: 10,
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 5,
+  elevation: 3,
+},
+cartItemName: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#000000',
+},
+cartItemQuantity: {
+  fontSize: 14,
+  color: '#555555',
+},
+cartItemPrice: {
+  fontSize: 14,
+  color: '#333333',
+},
+modalDescription: {
+  fontSize: 14,
+  color: '#555',
+  marginBottom: 15,
+  textAlign: 'center',
+},
+emptyCartText: {
+  fontSize: 16,
+  color: '#555',
+  textAlign: 'center',
+  marginVertical: 20,
+},
+totalPrice: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#000',
+  textAlign: 'center',
+  marginVertical: 10,
+},
+quantityContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 20,
+},
+quantityButton: {
+  backgroundColor: '#000000', // Black button background
+  borderRadius: 10,
+  padding: 10,
+  marginHorizontal: 10,
+},
+quantityButtonText: {
+  color: '#ffffff', // White text
+  fontSize: 18,
+  fontWeight: 'bold',
+},
+quantityText: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#000000', // Black text
 },
 });
 

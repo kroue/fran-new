@@ -11,44 +11,45 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-const fetchUsers = async () => {
-  try {
-    const response = await fetch('http://localhost/online-ordering-system/api/users.php');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('http://localhost/fran/api/users.php');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
-    const data = await response.json();
-    setUsers(data);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-  }
-};
+  };
 
- const handleAddUser = async () => {
-  try {
-    const response = await fetch('http://localhost/online-ordering-system/api/users.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(newUser),
-    });
+  const handleAddUser = async () => {
+    try {
+      const response = await fetch('http://localhost/fran/api/users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      });
 
-    if (response.ok) {
-      alert('User added successfully');
-      setNewUser({ email: '', password: '' });
-      fetchUsers(); // Refresh the user list
-    } else {
-      console.error('Failed to add user');
+      if (response.ok) {
+        alert('User added successfully');
+        setNewUser({ email: '', password: '' });
+        fetchUsers(); // Refresh the user list
+        setShowAddPopup(false);
+      } else {
+        console.error('Failed to add user');
+      }
+    } catch (error) {
+      console.error('Error adding user:', error);
     }
-  } catch (error) {
-    console.error('Error adding user:', error);
-  }
-};
+  };
 
   const handleEditUser = async () => {
     try {
-      const response = await fetch('http://localhost/online-ordering-system/api/users.php', {
+      const response = await fetch('http://localhost/fran/api/users.php', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +72,7 @@ const fetchUsers = async () => {
 
   const handleDeleteUser = async (id) => {
     try {
-      const response = await fetch('http://localhost/online-ordering-system/api/users.php', {
+      const response = await fetch('http://localhost/fran/api/users.php', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -175,18 +176,18 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '20px',
-    backgroundColor: '#fff5e5',
+    backgroundColor: '#ffffff', // White background
     minHeight: '100vh',
   },
   title: {
     fontSize: '28px',
     fontWeight: 'bold',
-    color: '#ff69b4',
+    color: '#000000', // Black text
     marginBottom: '20px',
   },
   addButton: {
-    backgroundColor: '#4CAF50',
-    color: '#fff',
+    backgroundColor: '#000000', // Black button
+    color: '#ffffff', // White text
     border: 'none',
     borderRadius: '5px',
     padding: '10px 15px',
@@ -204,7 +205,7 @@ const styles = {
     justifyContent: 'space-between',
     padding: '10px 15px',
     marginBottom: '10px',
-    backgroundColor: '#fff',
+    backgroundColor: '#f9f9f9', // Light gray background
     borderRadius: '10px',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
@@ -213,7 +214,7 @@ const styles = {
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff', // White background
     padding: '20px',
     borderRadius: '10px',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
@@ -228,8 +229,8 @@ const styles = {
     maxWidth: '300px',
   },
   button: {
-    backgroundColor: '#ff69b4',
-    color: '#fff',
+    backgroundColor: '#000000', // Black button
+    color: '#ffffff', // White text
     border: 'none',
     borderRadius: '5px',
     padding: '10px 15px',
@@ -237,8 +238,8 @@ const styles = {
     marginRight: '10px',
   },
   cancelButton: {
-    backgroundColor: '#ccc',
-    color: '#000',
+    backgroundColor: '#cccccc', // Light gray button
+    color: '#000000', // Black text
     border: 'none',
     borderRadius: '5px',
     padding: '10px 15px',
