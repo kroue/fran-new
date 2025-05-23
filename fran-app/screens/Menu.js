@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons'; // For cart icon (install expo/vector-icons if not already installed)
+import { Ionicons } from '@expo/vector-icons';
 
 const Menu = ({ navigation }) => {
   const [menuItems, setMenuItems] = useState([]);
@@ -35,7 +35,7 @@ const Menu = ({ navigation }) => {
   // Fetch products from the backend
   const fetchProducts = async () => {
     try {
-      const response = await fetch('http://192.168.1.7/fran/api/products.php'); // Replace with your backend API endpoint
+      const response = await fetch('http://192.168.1.10/fran-new/api/products.php'); // Replace with your backend API endpoint
       if (response.ok) {
         const data = await response.json();
         const availableProducts = data.filter((item) => item.stock > 0); // Filter out products with stock 0
@@ -63,9 +63,17 @@ const Menu = ({ navigation }) => {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('OrderHistory')}
+            style={{ marginRight: 15 }}
+          >
+            <Ionicons name="time-outline" size={28} color="#000" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       ),
     });
   }, [navigation]);
@@ -245,6 +253,14 @@ const updateCartItemQuantity = (itemId, newQuantity) => {
 
   return (
     <View style={styles.container}>
+      {/* Logout Icon Button (top left) */}
+      <TouchableOpacity
+        style={styles.logoutIconButton}
+        onPress={handleLogout}
+      >
+        <Ionicons name="log-out-outline" size={28} color="#000" />
+      </TouchableOpacity>
+
       <Text style={styles.title}>FRAN</Text>
       <Text style={styles.title}>Shop Now</Text>
 
@@ -262,6 +278,14 @@ const updateCartItemQuantity = (itemId, newQuantity) => {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.menuList}
       />
+
+      {/* Order History Icon (above cart icon) */}
+      <TouchableOpacity
+        style={styles.orderHistoryFloatingButton}
+        onPress={() => navigation.navigate('OrderHistory')}
+      >
+        <Ionicons name="time-outline" size={28} color="#fff" />
+      </TouchableOpacity>
 
       {/* Cart Icon */}
       <TouchableOpacity
@@ -626,6 +650,44 @@ quantityText: {
   fontSize: 18,
   fontWeight: 'bold',
   color: '#000000', // Black text
+},
+orderHistoryButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#000',
+  paddingVertical: 10,
+  paddingHorizontal: 18,
+  borderRadius: 8,
+  alignSelf: 'flex-end',
+  marginBottom: 10,
+},
+orderHistoryButtonText: {
+  color: '#fff',
+  fontWeight: 'bold',
+  marginLeft: 8,
+  fontSize: 16,
+},
+orderHistoryFloatingButton: {
+  position: 'absolute',
+  bottom: 140, // Place it above the cart icon (adjust as needed)
+  right: 20,
+  backgroundColor: '#000',
+  borderRadius: 30,
+  padding: 12,
+  zIndex: 11,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 4,
+},
+logoutIconButton: {
+  position: 'absolute',
+  top: 20,
+  left: 20,
+  zIndex: 20,
+  backgroundColor: '#fff',
+  borderRadius: 20,
+  padding: 6,
+  elevation: 4,
 },
 });
 

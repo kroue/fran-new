@@ -19,7 +19,7 @@ const Tracking = ({ navigation }) => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://192.168.1.7/fran/api/get_orders.php');
+      const response = await fetch('http://192.168.1.10/fran-new/api/get_orders.php');
       if (response.ok) {
         const data = await response.json();
         setOrders(data);

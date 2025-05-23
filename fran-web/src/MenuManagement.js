@@ -19,7 +19,7 @@ const MenuManagement = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('http://localhost/fran/api/products.php');
+      const response = await fetch('http://localhost/fran-new/api/products.php');
       if (response.ok) {
         const data = await response.json();
         setProducts(data);

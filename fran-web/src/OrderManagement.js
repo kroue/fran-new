@@ -15,16 +15,23 @@ const OrderManagement = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://localhost/fran/api/orders.php');
+      const response = await fetch('http://localhost/fran-new/api/orders.php');
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched orders:', data); // Log the fetched data
-        setOrders(data); // Update the state
+        if (Array.isArray(data)) {
+          setOrders(data); // Update the state
+        } else {
+          setOrders([]); // Set to empty array if not an array
+          console.error('API did not return an array:', data);
+        }
       } else {
         console.error('Failed to fetch orders:', response.status, response.statusText);
+        setOrders([]); // Set to empty array on error
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      setOrders([]); // Set to empty array on error
     }
   };
 
@@ -33,7 +40,7 @@ const OrderManagement = () => {
     console.log(`Updating order ${orderId} to status: ${newStatus}`);
 
     try {
-      const response = await fetch('http://localhost/fran/api/orders.php', {
+      const response = await fetch('http://localhost/fran-new/api/orders.php', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

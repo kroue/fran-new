@@ -18,6 +18,7 @@ const SidebarLayout = ({ children }) => {
           <Link to="/menu" style={styles.navLink}>Menu Management</Link>
           <Link to="/orders" style={styles.navLink}>Order Management</Link>
           <Link to="/users" style={styles.navLink}>User Management</Link>
+          <Link to="/order-history" style={styles.navLink}>Order History</Link>
         </nav>
         <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
       </div>

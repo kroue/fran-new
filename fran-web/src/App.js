@@ -9,6 +9,7 @@ import UserManagement from './UserManagement';
 import VerifyEmail from './VerifyEmail';
 import AddProduct from './AddProduct';
 import EditProduct from './EditProduct';
+import OrderHistory from './OrderHistory';
 
 
 function App() {
@@ -69,9 +70,15 @@ function App() {
             <UserManagement />
           </SidebarLayout>
         ) : <Navigate to="/login" />} />
+        <Route path="/order-history" element={isLoggedIn ? (
+          <SidebarLayout onLogout={handleLogout} userEmail={userEmail}>
+            <OrderHistory />
+          </SidebarLayout>
+        ) : <Navigate to="/login" />} />
 
         <Route path="/add-product" element={<AddProduct />} />
         <Route path="/edit-product" element={<EditProduct />} />
+        
 
         {/* Redirect any other routes to Login */}
       </Routes>

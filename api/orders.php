@@ -36,13 +36,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         if ($status === 'Finished') {
             // Subtract stock and delete the order
-            $stmt = $pdo->prepare("SELECT product_id, quantity FROM orders WHERE id = :id");
+            $stmt = $pdo->prepare("SELECT * FROM orders WHERE id = :id");
             $stmt->execute([':id' => $orderId]);
             $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($order) {
                 $productId = $order['product_id'];
                 $quantity = $order['quantity'];
+
+                // Archive to order_history
+                $archiveStmt = $pdo->prepare("INSERT INTO order_history (product_id, product_name, quantity, total_price, status, address) VALUES (:product_id, :product_name, :quantity, :total_price, :status, :address)");
+                $archiveStmt->execute([
+                    ':product_id' => $order['product_id'],
+                    ':product_name' => $order['product_name'],
+                    ':quantity' => $order['quantity'],
+                    ':total_price' => $order['total_price'],
+                    ':status' => $order['status'],
+                    ':address' => $order['address']
+                ]);
 
                 // Update stock
                 $updateStockStmt = $pdo->prepare("UPDATE products SET stock = stock - :quantity WHERE id = :product_id");
@@ -52,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $deleteOrderStmt = $pdo->prepare("DELETE FROM orders WHERE id = :id");
                 $deleteOrderStmt->execute([':id' => $orderId]);
 
-                echo json_encode(['success' => true, 'message' => 'Order finished and removed.']);
+                echo json_encode(['success' => true, 'message' => 'Order finished, archived, and removed.']);
                 exit;
             }
         } else {

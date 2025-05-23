@@ -26,7 +26,7 @@ const Order = ({ route, navigation }) => {
 
     try {
       // Send order details to the database
-      const response = await fetch('http://192.168.1.7/fran/api/save_order.php', {
+      const response = await fetch('http://192.168.1.10/fran-new/api/save_order.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

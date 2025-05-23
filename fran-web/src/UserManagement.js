@@ -13,7 +13,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost/fran/api/users.php');
+      const response = await fetch('http://localhost/fran-new/api/users.php');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
